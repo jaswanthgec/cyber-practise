@@ -1,356 +1,341 @@
 import streamlit as st
-from cryptography.fernet import Fernet
-from cryptography.hazmat.backends import default_backend
-from cryptography.hazmat.primitives import hashes, serialization
-from cryptography.hazmat.primitives.asymmetric import rsa, padding
-from cryptography.hazmat.primitives.ciphers import Cipher, algorithms, modes
-import base64 
-import numpy as np
+from Crypto.Cipher import AES, DES, DES3, Blowfish, ChaCha20, CAST, ARC2
+from Crypto.Util.Padding import pad, unpad
+import base64
 
-# --- Encryption Algorithm Implementations ---
+# Adding top buttons for documentation links
+st.markdown("""
+    <style>
+    .top-buttons {
+        display: flex;
+        justify-content: space-between;
+        margin-bottom: 30px;
+    }
+    .top-buttons a {
+        background-color: #66d9ef;
+        color: white;
+        text-align: center;
+        padding: 10px 20px;
+        text-decoration: none;
+        border-radius: 5px;
+        font-size: 16px;
+        transition: 0.3s;
+    }
+    .top-buttons a:hover {
+        background-color: #ff6666;
+    }
+    </style>
+    <div class="top-buttons">
+        <a href="encryption-doc.html" target="_blank">Encryption Documentation</a>
+        <a href="main-doc.html" target="_blank">Main Documentation</a>
+        <a href="decryption-doc.html" target="_blank">Decryption Documentation</a>
+    </div>
+    """, unsafe_allow_html=True)
 
-def caesar_cipher(text, shift):
-    result = ''
-    for char in text:
-        if char.isalpha():
-            start = ord('a') if char.islower() else ord('A')
-            shifted_char = chr((ord(char) - start + shift) % 26 + start)
-        elif char.isdigit():
-            shifted_char = str((int(char) + shift) % 10)
+# Implementations of basic ciphers
+def caesar_cipher(text, shift, mode='encrypt'):
+    result = ""
+    shift = shift % 26
+    for i in text:
+        if i.isalpha():
+            base = ord('A') if i.isupper() else ord('a')
+            shift_value = (ord(i) - base + shift) % 26 if mode == 'encrypt' else (ord(i) - base - shift) % 26
+            result += chr(base + shift_value)
         else:
-            shifted_char = char
-        result += shifted_char
+            result += i
     return result
 
-def monoalphabetic_cipher(text, key):
-    alphabet = 'abcdefghijklmnopqrstuvwxyz'
-    mapping = str.maketrans(alphabet, key)
-    return text.translate(mapping)
-
-def playfair_cipher(text, key):
-    # ... (Implementation of Playfair Cipher) ...
-    text = text.upper().replace("J", "I")
-    key = key.upper().replace("J", "I")
-    matrix = generate_matrix(key)
-    ciphertext = encrypt_playfair(text, matrix)
-    return ciphertext
-
-def hill_cipher(text, key_matrix):
-    # ... (Implementation of Hill Cipher) ...
-    text = text.upper().replace(" ", "")
-    key_matrix = np.array(key_matrix)
-    ciphertext = encrypt_hill(text, key_matrix)
-    return ciphertext
-
-def polyalphabetic_cipher(text, key):
-    # ... (Implementation of Polyalphabetic Cipher - Vigenere Example) ...
-    text = text.upper()
-    key = key.upper()
-    key_len = len(key)
-    ciphertext = ''
-    for i, char in enumerate(text):
-        if char.isalpha():
-            shift = ord(key[i % key_len]) - ord('A')
-            shifted_char = chr((ord(char) - ord('A') + shift) % 26 + ord('A'))
-        else:
-            shifted_char = char
-        ciphertext += shifted_char
-    return ciphertext
-
-def one_time_pad(text, key):
-    # ... (Implementation of One-Time Pad) ...
-    if len(text) != len(key):
-        return "Error: Key length must match plaintext length for One-Time Pad."
-    text = text.upper()
-    key = key.upper()
-    ciphertext = ''.join(chr((ord(t) + ord(k) - 2 * ord('A')) % 26 + ord('A')) 
-                         for t, k in zip(text, key))
-    return ciphertext
-
-def rail_fence(text, rails):
-    # ... (Implementation of Rail Fence Cipher) ...
-    fence = [['' for i in range(len(text))] for j in range(rails)]
-    direction = 1
-    row, col = 0, 0
+def atbash_cipher(text):
+    result = ""
     for char in text:
-        fence[row][col] = char
-        col += 1
-        if row + direction == rails or row + direction < 0:
-            direction *= -1
-        row += direction
-    ciphertext = ''.join(char for row in fence for char in row if char)
-    return ciphertext
-
-def row_column_transposition(text, key):
-    # ... (Implementation of Row Column Transposition) ...
-    order = sorted(range(len(key)), key=lambda k: key[k])
-    ciphertext = ''
-    for i in order:
-        col = i
-        while col < len(text):
-            ciphertext += text[col]
-            col += len(key)
-    return ciphertext
-
-def aes_encrypt(plaintext, key):
-    cipher = Cipher(algorithms.AES(key), modes.ECB(), backend=default_backend())
-    encryptor = cipher.encryptor()
-    padded_plaintext = padding_plaintext(plaintext)
-    ciphertext = encryptor.update(padded_plaintext) + encryptor.finalize()
-    return base64.b64encode(ciphertext).decode('utf-8')
-
-def aes_decrypt(ciphertext, key):
-    cipher = Cipher(algorithms.AES(key), modes.ECB(), backend=default_backend())
-    decryptor = cipher.decryptor()
-    decoded_ciphertext = base64.b64decode(ciphertext)
-    plaintext_padded = decryptor.update(decoded_ciphertext) + decryptor.finalize()
-    plaintext = unpadding_plaintext(plaintext_padded)
-    return plaintext.decode('utf-8')
-
-def des_encrypt(plaintext, key):
-    # ... (Implementation of DES encryption) ...
-    cipher = Cipher(algorithms.TripleDES(key), modes.ECB(), backend=default_backend())
-    encryptor = cipher.encryptor()
-    padded_plaintext = padding_plaintext(plaintext)
-    ciphertext = encryptor.update(padded_plaintext) + encryptor.finalize()
-    return base64.b64encode(ciphertext).decode('utf-8')
-
-def twofish_encrypt(plaintext, key):
-    # ... (Implementation of Twofish encryption) ...
-    pass  # Replace with your Twofish encryption logic
-
-def blowfish_encrypt(plaintext, key):
-    # ... (Implementation of Blowfish encryption) ...
-    pass  # Replace with your Blowfish encryption logic
-
-def idea_encrypt(plaintext, key):
-    # ... (Implementation of IDEA encryption) ...
-    pass  # Replace with your IDEA encryption logic
-
-def rsa_encrypt(plaintext, public_key):
-    ciphertext = public_key.encrypt(
-        plaintext,
-        padding.OAEP(
-            mgf=padding.MGF1(algorithm=hashes.SHA256()),
-            algorithm=hashes.SHA256(),
-            label=None
-        )
-    )
-    return base64.b64encode(ciphertext).decode('utf-8') 
-
-def rsa_decrypt(ciphertext, private_key):
-    plaintext = private_key.decrypt(
-        base64.b64decode(ciphertext),
-        padding.OAEP(
-            mgf=padding.MGF1(algorithm=hashes.SHA256()),
-            algorithm=hashes.SHA256(),
-            label=None
-        )
-    )
-    return plaintext.decode('utf-8')
-
-def ecc_encrypt(plaintext, public_key):
-    # ... (Implementation of ECC encryption) ...
-    pass  # Replace with your ECC encryption logic
-
-# -- Playfair Helper functions 
-def generate_matrix(key):
-    key = key.upper().replace("J", "I")  # Replace J with I in the key
-    alphabet = "ABCDEFGHIKLMNOPQRSTUVWXYZ" 
-    matrix = []
-    for char in key:
-        if char not in matrix and char in alphabet: # Check if char is in alphabet
-            matrix.append(char)
-    for char in alphabet:
-        if char not in matrix:
-            matrix.append(char)
-    return [matrix[i:i + 5] for i in range(0, 25, 5)]
-
-def find_position(matrix, char):
-    char = char.upper().replace("J", "I")  # Replace J with I in the character
-    for row in range(5):
-        for col in range(5):
-            if matrix[row][col] == char:
-                return row, col
-    return None, None # Return None for both if character not found
-
-def encrypt_playfair(text, matrix):
-    text = text.upper().replace("J", "I")
-    if len(text) % 2 != 0:
-        text += 'X'
-    ciphertext = ''
-    for i in range(0, len(text), 2):
-        a, b = text[i], text[i + 1]
-        row_a, col_a = find_position(matrix, a)
-        row_b, col_b = find_position(matrix, b)
-
-        # Handle cases where a character is not found
-        if row_a is None or row_b is None:
-            st.error(f"Invalid plaintext character: '{a}' or '{b}' not in matrix.")
-            return
-
-        if row_a == row_b:
-            ciphertext += matrix[row_a][(col_a + 1) % 5]
-            ciphertext += matrix[row_b][(col_b + 1) % 5]
-        elif col_a == col_b:
-            ciphertext += matrix[(row_a + 1) % 5][col_a]
-            ciphertext += matrix[(row_b + 1) % 5][col_b]
+        if char.isupper():
+            result += chr(ord('Z') - (ord(char) - ord('A')))
+        elif char.islower():
+            result += chr(ord('z') - (ord(char) - ord('a')))
         else:
-            ciphertext += matrix[row_a][col_b]
-            ciphertext += matrix[row_b][col_a]
-    return ciphertext
+            result += char
+    return result
 
-# --- Hill cipher Helper functions ---
-def encrypt_hill(text, key):
-    n = len(key)
-    if len(text) % n != 0:
-        text += 'X' * (n - len(text) % n) # Pad the text if necessary
-    ciphertext = ''
-    for i in range(0, len(text), n):
-        block = text[i:i+n]
-        block_vector = np.array([ord(char) - ord('A') for char in block])
-        encrypted_vector = np.dot(key, block_vector) % 26
-        ciphertext += ''.join([chr(val + ord('A')) for val in encrypted_vector])
-    return ciphertext
+def xor_cipher(text, key):
+    return ''.join(chr(ord(c) ^ ord(key)) for c, key in zip(text, key * (len(text) // len(key) + 1)))
 
-# --- Helper Functions ---
+# Symmetric encryption/decryption
+def symmetric_encrypt(algorithm, key, plaintext):
+    try:
+        if algorithm == "AES":
+            cipher = AES.new(key, AES.MODE_ECB)
+            ciphertext = cipher.encrypt(pad(plaintext.encode(), AES.block_size))
+            return base64.b64encode(ciphertext).decode()
 
-def padding_plaintext(plaintext):
-    block_size = algorithms.AES.block_size
-    padding_length = block_size - (len(plaintext) % block_size)
-    padding = bytes([padding_length] * padding_length)
-    return plaintext + padding
-
-def unpadding_plaintext(padded_plaintext):
-    padding_length = padded_plaintext[-1]
-    return padded_plaintext[:-padding_length]
-
-# --- Streamlit App ---
-
-def main():
-    st.title("Encryption App")
-
-    # Plaintext Input
-    plaintext = st.text_input("Enter Plaintext:", "Type your message here")
-    plaintext = plaintext.encode('utf-8') # Encode plaintext to bytes
-
-    # Encryption Algorithm Selection
-    algorithm = st.selectbox(
-        "Select Encryption Algorithm:",
-        (
-            "Caesar Cipher",
-            "Monoalphabetic Cipher",
-            "Playfair Cipher",
-            "Hill Cipher",
-            "Polyalphabetic Cipher",
-            "One-Time Pad",
-            "Rail Fence",
-            "Row Column Transposition",
-            "AES",
-            "DES", 
-            "Twofish", 
-            "Blowfish", 
-            "IDEA", 
-            "RSA", 
-            "ECC"
-        ),
-    )
-
-    # Algorithm-Specific Inputs (if needed)
-    if algorithm == "Caesar Cipher":
-        shift = st.slider("Shift Value:", min_value=1, max_value=25, value=3)
-    elif algorithm == "Monoalphabetic Cipher":
-        key = st.text_input("Key (26 unique lowercase letters):", "zyxwvutsrqponmlkjihgfedcba")
-        if len(key) != 26 or len(set(key)) != 26 or not key.islower() or not key.isalpha():
-            st.error("Invalid key! Must be 26 unique lowercase letters.")
-            return
-    elif algorithm == "Playfair Cipher":
-        key = st.text_input("Key (Remove duplicate letters & J):", "monarchy")  
-    elif algorithm == "Hill Cipher":
-        key_matrix_str = st.text_input("Key Matrix (e.g., 6 24 1; 13 16 10; 20 17 15):", "6 24 1; 13 16 10; 20 17 15")
-        try:
-            key_matrix = [[int(x) for x in row.split()] for row in key_matrix_str.split(";")]
-        except:
-            st.error("Invalid key matrix format!")
-            return
-    elif algorithm == "Polyalphabetic Cipher":
-        key = st.text_input("Key (Word or Phrase):", "LEMON")
-    elif algorithm == "One-Time Pad":
-        key = st.text_input("Key (Same length as plaintext):", "")
-        if len(key) != len(plaintext):
-            st.error("Key length must match plaintext length for One-Time Pad.")
-            return
-    elif algorithm == "Rail Fence":
-        rails = st.slider("Number of Rails:", min_value=2, max_value=5, value=3)
-    elif algorithm == "Row Column Transposition":
-        key = st.text_input("Key (Numbers, e.g., 3142):", "3142")
-        if not key.isdigit():
-            st.error("Key must contain only digits!")
-            return
-    elif algorithm == 'AES':
-        key = Fernet.generate_key()  # Generate a new key for AES
-        st.write("Generated AES Key:", key)
-    elif algorithm == 'DES':
-        key = Fernet.generate_key()[:8]  # Generate a new key for DES
-        st.write("Generated DES Key:", key)
-    elif algorithm == 'RSA':
-        st.write('Generating RSA keys...')
-        private_key = rsa.generate_private_key(
-            public_exponent=65537,
-            key_size=2048,
-            backend=default_backend()
-        )
-        public_key = private_key.public_key()
-        st.write('Done!')
-
-        # Serialize the keys for display (you can save them if needed)
-        private_pem = private_key.private_bytes(
-            encoding=serialization.Encoding.PEM,
-            format=serialization.PrivateFormat.PKCS8,
-            encryption_algorithm=serialization.NoEncryption()
-        )
-        public_pem = public_key.public_bytes(
-            encoding=serialization.Encoding.PEM,
-            format=serialization.PublicFormat.SubjectPublicKeyInfo
-        )
-        st.write("Private Key:", private_pem.decode('utf-8'))
-        st.write("Public Key:", public_pem.decode('utf-8'))
-    # ... (Add inputs for Twofish, Blowfish, IDEA, ECC) ...
-
-    # --- Encrypt and Display --- 
-    if st.button("Encrypt"):
-        if algorithm == "Caesar Cipher":
-            ciphertext = caesar_cipher(plaintext.decode('utf-8'), shift) # Decode plaintext here
-        elif algorithm == "Monoalphabetic Cipher":
-            ciphertext = monoalphabetic_cipher(plaintext.decode('utf-8'), key)
-        elif algorithm == "Playfair Cipher":
-            ciphertext = playfair_cipher(plaintext.decode('utf-8'), key)
-        elif algorithm == "Hill Cipher":
-            ciphertext = hill_cipher(plaintext.decode('utf-8'), key_matrix) 
-        elif algorithm == "Polyalphabetic Cipher":
-            ciphertext = polyalphabetic_cipher(plaintext.decode('utf-8'), key) 
-        elif algorithm == "One-Time Pad":
-            ciphertext = one_time_pad(plaintext.decode('utf-8'), key)
-        elif algorithm == "Rail Fence":
-            ciphertext = rail_fence(plaintext.decode('utf-8'), rails)
-        elif algorithm == "Row Column Transposition":
-            ciphertext = row_column_transposition(plaintext.decode('utf-8'), key)
-        elif algorithm == "AES":
-            ciphertext = aes_encrypt(plaintext, key)
         elif algorithm == "DES":
-            ciphertext = des_encrypt(plaintext, key)
-        elif algorithm == "Twofish":
-            ciphertext = twofish_encrypt(plaintext, key) # Implement Twofish
+            cipher = DES.new(key[:8], DES.MODE_ECB)
+            ciphertext = cipher.encrypt(pad(plaintext.encode(), DES.block_size))
+            return base64.b64encode(ciphertext).decode()
+
+        elif algorithm == "3DES":
+            cipher = DES3.new(key[:24], DES3.MODE_ECB)  # 3DES requires a 16 or 24-byte key
+            ciphertext = cipher.encrypt(pad(plaintext.encode(), DES3.block_size))
+            return base64.b64encode(ciphertext).decode()
+
         elif algorithm == "Blowfish":
-            ciphertext = blowfish_encrypt(plaintext, key) # Implement Blowfish
-        elif algorithm == "IDEA":
-            ciphertext = idea_encrypt(plaintext, key) # Implement IDEA
-        elif algorithm == "RSA":
-            ciphertext = rsa_encrypt(plaintext, public_key) 
-        elif algorithm == "ECC":
-            ciphertext = ecc_encrypt(plaintext, key) # Implement ECC
+            cipher = Blowfish.new(key[:16], Blowfish.MODE_ECB)
+            ciphertext = cipher.encrypt(pad(plaintext.encode(), Blowfish.block_size))
+            return base64.b64encode(ciphertext).decode()
 
-        st.write("Ciphertext:", ciphertext)
+        elif algorithm == "ChaCha20":
+            cipher = ChaCha20.new(key=key[:32])
+            ciphertext = cipher.encrypt(plaintext.encode())
+            return base64.b64encode(ciphertext).decode()
 
-if __name__ == "__main__":
-    main()
+        elif algorithm == "CAST5":
+            cipher = CAST.new(key[:16], CAST.MODE_ECB)
+            ciphertext = cipher.encrypt(pad(plaintext.encode(), CAST.block_size))
+            return base64.b64encode(ciphertext).decode()
+
+        elif algorithm == "RC2":
+            cipher = ARC2.new(key[:16], ARC2.MODE_ECB)
+            ciphertext = cipher.encrypt(pad(plaintext.encode(), ARC2.block_size))
+            return base64.b64encode(ciphertext).decode()
+
+    except Exception as e:
+        st.error(f"Encryption failed: {str(e)}")
+
+def symmetric_decrypt(algorithm, key, ciphertext):
+    try:
+        ciphertext = base64.b64decode(ciphertext)
+        if algorithm == "AES":
+            cipher = AES.new(key, AES.MODE_ECB)
+            plaintext = unpad(cipher.decrypt(ciphertext), AES.block_size).decode()
+            return plaintext
+
+        elif algorithm == "DES":
+            cipher = DES.new(key[:8], DES.MODE_ECB)
+            plaintext = unpad(cipher.decrypt(ciphertext), DES.block_size).decode()
+            return plaintext
+
+        elif algorithm == "3DES":
+            cipher = DES3.new(key[:24], DES3.MODE_ECB)  # 3DES requires a 16 or 24-byte key
+            plaintext = unpad(cipher.decrypt(ciphertext), DES3.block_size).decode()
+            return plaintext
+
+        elif algorithm == "Blowfish":
+            cipher = Blowfish.new(key[:16], Blowfish.MODE_ECB)
+            plaintext = unpad(cipher.decrypt(ciphertext), Blowfish.block_size).decode()
+            return plaintext
+
+        elif algorithm == "ChaCha20":
+            cipher = ChaCha20.new(key=key[:32])
+            plaintext = cipher.decrypt(ciphertext).decode()
+            return plaintext
+
+        elif algorithm == "CAST5":
+            cipher = CAST.new(key[:16], CAST.MODE_ECB)
+            plaintext = unpad(cipher.decrypt(ciphertext), CAST.block_size).decode()
+            return plaintext
+
+        elif algorithm == "RC2":
+            cipher = ARC2.new(key[:16], ARC2.MODE_ECB)
+            plaintext = unpad(cipher.decrypt(ciphertext), ARC2.block_size).decode()
+            return plaintext
+
+    except Exception as e:
+        st.error(f"Decryption failed: {str(e)}")
+
+# Cybersecurity-themed styling
+st.markdown("""
+    <style>
+    body {
+        background-color: #1d1f21;
+        color: #f8f8f2;
+    }
+    .stButton>button {
+        background-color: #f92672;
+        color: white;
+        border-radius: 10px;
+        width: 150px;
+        height: 40px;
+    }
+    h1, h2, h3, p {
+        color: #66d9ef;
+        font-family: 'Courier New', Courier, monospace;
+    }
+    input {
+        background-color: #272822;
+        color: #f8f8f2;
+    }
+    textarea {
+        background-color: #272822;
+        color: #f8f8f2;
+    }
+    </style>
+    """, unsafe_allow_html=True)
+
+# Streamlit UI
+st.title("🔒 Advanced Encryption/Decryption Tool")
+
+
+# Input text from user
+user_input = st.text_area("Enter the text to encrypt or decrypt", "")
+
+# Choose operation: Encryption or Decryption
+operation = st.selectbox("Select Operation", ["Encryption", "Decryption"])
+
+# Dropdown to select encryption algorithm
+algorithm = st.selectbox(
+    "Select Algorithm",
+    ["AES", "DES", "3DES", "Blowfish", "ChaCha20", "CAST5", "RC2", "Caesar Cipher", "Atbash Cipher", "XOR Cipher"]
+)
+
+# Key Information for Symmetric Encryption
+if algorithm == "AES":
+    st.markdown("""
+    **Key Information for AES:**
+    - AES uses a key length of 16, 24, or 32 bytes.
+    - AES is a highly secure algorithm, widely used in industries for data encryption.
+    - Ensure the key length is correct or the encryption will fail.
+    """)
+
+elif algorithm == "DES":
+    st.markdown("""
+    **Key Information for DES:**
+    - DES uses a key length of 8 bytes.
+    - DES is a legacy algorithm, considered insecure today due to its short key length.
+    """)
+
+elif algorithm == "3DES":
+    st.markdown("""
+    **Key Information for 3DES:**
+    - 3DES (Triple DES) uses a key length of 16 or 24 bytes.
+    - Ensure the key does not have repeated blocks (e.g., '1234567812345678' is not valid).
+    - It applies the DES algorithm three times to increase security.
+    - Though more secure than DES, it is slower compared to AES.
+    """)
+    key = st.text_input(f"Enter the key for {algorithm} (16 or 24 bytes)", type="password")
+
+    # Validate key length for 3DES
+    if len(key) not in [16, 24]:
+        st.error("❗ Key length for 3DES must be either 16 or 24 bytes.")
+    elif key[:8] == key[8:16]:  # Avoid repeated blocks
+        st.error("❗ 3DES key should not have repeated blocks like '1234567812345678'.")
+
+
+elif algorithm == "Blowfish":
+    st.markdown("""
+    **Key Information for Blowfish:**
+    - Blowfish uses a key length of up to 448 bits, but typically 16 bytes is common.
+    - It is fast and free for use, making it popular in software encryption.
+    """)
+
+elif algorithm == "ChaCha20":
+    st.markdown("""
+    **Key Information for ChaCha20:**
+    - ChaCha20 uses a 32-byte key.
+    - It is designed to be faster than AES on devices without hardware acceleration.
+    - It is a secure alternative to AES for high-performance use cases.
+    """)
+
+elif algorithm == "CAST5":
+    st.markdown("""
+    **Key Information for CAST5:**
+    - CAST5 uses a key length of 5 to 16 bytes.
+    - It is used in various encryption standards and protocols.
+    """)
+
+elif algorithm == "RC2":
+    st.markdown("""
+    **Key Information for RC2:**
+    - RC2 uses a key length of 8 to 16 bytes.
+    - It is a block cipher that was designed to be a replacement for DES.
+    """)
+
+# Key input
+if algorithm in ["AES", "DES", "3DES", "Blowfish", "ChaCha20", "CAST5", "RC2"]:
+    key = st.text_input(f"Enter the key for {algorithm} (length varies per algorithm)", type="password")
+
+elif algorithm == "Caesar Cipher":
+    shift = st.number_input("Enter the shift value for Caesar Cipher (integer)", min_value=1, max_value=25)
+
+elif algorithm == "XOR Cipher":
+    st.markdown("""
+    **Key Information for XOR Cipher:**
+    - XOR cipher works by applying the XOR operation between the plaintext and key.
+    - The key should be at least as long as the plaintext for maximum security.
+    """)
+    key = st.text_input(f"Enter the key for XOR Cipher", type="password")
+
+# Process based on operation and algorithm
+if st.button("Run"):
+    if operation == "Encryption":
+        if algorithm in ["AES", "DES", "3DES", "Blowfish", "ChaCha20", "CAST5", "RC2"]:
+            if len(key) > 0:
+                encrypted_text = symmetric_encrypt(algorithm, key.encode(), user_input)
+                st.success(f"🔐 Encrypted Text: {encrypted_text}")
+            else:
+                st.error("❗ Key is required for encryption.")
+        elif algorithm == "Caesar Cipher":
+            encrypted_text = caesar_cipher(user_input, int(shift), mode='encrypt')
+            st.success(f"🔐 Encrypted Text: {encrypted_text}")
+        elif algorithm == "Atbash Cipher":
+            encrypted_text = atbash_cipher(user_input)
+            st.success(f"🔐 Encrypted Text: {encrypted_text}")
+        elif algorithm == "XOR Cipher":
+            if len(key) > 0:
+                encrypted_text = xor_cipher(user_input, key)
+                st.success(f"🔐 Encrypted Text: {encrypted_text}")
+            else:
+                st.error("❗ Key is required for XOR encryption.")
+
+    elif operation == "Decryption":
+        if algorithm in ["AES", "DES", "3DES", "Blowfish", "ChaCha20", "CAST5", "RC2"]:
+            if len(key) > 0:
+                try:
+                    decrypted_text = symmetric_decrypt(algorithm, key.encode(), user_input)
+                    st.success(f"🔓 Decrypted Text: {decrypted_text}")
+                except Exception as e:
+                    st.error(f"❗ Decryption failed: {str(e)}")
+            else:
+                st.error("❗ Key is required for decryption.")
+        elif algorithm == "Caesar Cipher":
+            decrypted_text = caesar_cipher(user_input, int(shift), mode='decrypt')
+            st.success(f"🔓 Decrypted Text: {decrypted_text}")
+        elif algorithm == "Atbash Cipher":
+            decrypted_text = atbash_cipher(user_input)
+            st.success(f"🔓 Decrypted Text: {decrypted_text}")
+        elif algorithm == "XOR Cipher":
+            if len(key) > 0:
+                decrypted_text = xor_cipher(user_input, key)
+                st.success(f"🔓 Decrypted Text: {decrypted_text}")
+            else:
+                st.error("❗ Key is required for XOR decryption.")
+
+st.markdown("""
+    <style>
+    .footer {
+        left: 0;
+        bottom: 0;
+        width: 100%;
+        background-color: #1d1f21;
+        color: #f8f8f2;
+        text-align: center;
+        padding: 10px 0;
+        font-family: 'Courier New', Courier, monospace;
+        font-size: 14px;
+    }
+    .footer a {
+        color: #66d9ef;
+        text-decoration: none;
+    }
+    .footer a:hover {
+        color: #ff6666;
+    }
+    </style>
+
+    <div class="footer">
+        <p>Developed by <strong>Jaswanth Kollipara</strong></p>
+        <p>
+            <a href="https://github.com/jaswanthgec" target="_blank">GitHub</a> |
+            <a href="https://www.linkedin.com/in/jaswanthkollipara/" target="_blank">LinkedIn</a> |
+            <a href="https://sites.google.com/view/jaswanth-kollipara" target="_blank">Portfolio</a>
+        </p>
+    </div>
+    """, unsafe_allow_html=True)
